@@ -1,0 +1,216 @@
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #e0f7fa, #f0f4c3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.container {
+  width: 80%;
+  max-width: 800px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+}
+
+/* Kiểu dáng cho phần xác thực (đăng nhập/đăng ký) */
+.auth-container {
+  padding: 40px;
+  text-align: center;
+  transition: transform 0.5s ease, opacity 0.5s ease; /* Hiệu ứng chuyển động */
+}
+
+.auth-container h2 {
+  color: #007bff;
+  margin-bottom: 30px;
+  animation: fadeInDown 0.8s ease; /* Hiệu ứng xuất hiện */
+}
+
+.auth-container input {
+  width: calc(100% - 22px);
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Hiệu ứng chuyển động */
+  animation: fadeInUp 0.8s ease; /* Hiệu ứng xuất hiện */
+}
+
+.auth-container input:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+.auth-container button {
+  padding: 12px 25px;
+  margin: 10px 5px;
+  border: none;
+  background-color: #007bff;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease; /* Hiệu ứng chuyển động */
+  animation: fadeInUp 0.8s ease; /* Hiệu ứng xuất hiện */
+}
+
+.auth-container button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+/* Kiểu dáng cho phần chat (giữ nguyên) */
+.chat-container {
+  display: none;
+  flex-direction: column;
+  flex-grow: 1;
+  height: 100%;
+}
+
+.messages {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  padding: 12px 18px;
+  margin-bottom: 15px;
+  border-radius: 20px;
+  max-width: 70%;
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.07);
+}
+
+.message.sent {
+  background-color: #e0f7fa;
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
+}
+
+.message.received {
+  background-color: #f0f4c3;
+  align-self: flex-start;
+  border-bottom-left-radius: 2px;
+}
+
+.message strong {
+  color: #333;
+  margin-right: 5px;
+}
+
+.input-area {
+  display: flex;
+  padding: 15px;
+  border-top: 1px solid #eee;
+  background-color: #f9f9f9;
+}
+
+.input-area input {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 25px;
+  margin-right: 10px;
+  transition: border-color 0.3s ease;
+}
+
+.input-area input:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.input-area button {
+  padding: 10px 20px;
+  border: none;
+  background-color: #007bff;
+  color: #fff;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.input-area button:hover {
+  background-color: #0056b3;
+}
+
+/* Hiệu ứng và kiểu dáng bổ sung (giữ nguyên) */
+.message::before {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  width: 12px;
+  height: 12px;
+  background-color: inherit;
+}
+
+.message.sent::before {
+  right: 10px;
+  border-bottom-right-radius: 3px;
+}
+
+.message.received::before {
+  left: 10px;
+  border-bottom-left-radius: 3px;
+}
+
+.messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.messages::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Responsive design (giữ nguyên) */
+@media (max-width: 600px) {
+  .container {
+      width: 95%;
+  }
+
+  .auth-container, .messages, .input-area {
+      padding: 20px;
+  }
+}
+
+/* Keyframes cho hiệu ứng chuyển động */
+@keyframes fadeInDown {
+  from {
+      opacity: 0;
+      transform: translateY(-20px);
+  }
+  to {
+      opacity: 1;
+      transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+      opacity: 0;
+      transform: translateY(20px);
+  }
+  to {
+      opacity: 1;
+      transform: translateY(0);
+  }
+}
