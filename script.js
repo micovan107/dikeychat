@@ -34,6 +34,10 @@ const messagesDiv = document.querySelector('.messages');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const adminBtn = document.createElement('button');
+adminBtn.classList.add('admin-btn');
+adminBtn.innerHTML = '<i class="fas fa-cog"></i> Quản trị';
+document.querySelector('.container').appendChild(adminBtn);
 const emojiBtn = document.getElementById('emoji-btn');
 const attachmentBtn = document.getElementById('attachment-btn');
 const emojiPicker = document.getElementById('emoji-picker');
@@ -191,6 +195,13 @@ loginBtn.addEventListener('click', () => {
             authContainer.style.display = 'none';
             chatContainer.style.display = 'flex';
 
+            // Hiển thị nút quản trị nếu là admin
+            if (email === 'micovan108@gmail.com') {
+                adminBtn.style.display = 'block';
+            } else {
+                adminBtn.style.display = 'none';
+            }
+
             // Cuộn xuống tin nhắn cuối cùng
             scrollToBottom();
         })
@@ -322,6 +333,155 @@ document.querySelectorAll('.tab-btn').forEach(button => {
         document.getElementById(`${tabId}-tab`).style.display = 'block';
     });
 });
+
+// Biến để theo dõi trạng thái tab quản trị
+let isAdminTabOpen = false;
+let adminTab = null;
+let adminTabBtn = null;
+
+// Xử lý sự kiện click cho nút quản trị
+adminBtn.addEventListener('click', () => {
+    // Nếu tab quản trị chưa tồn tại, tạo mới
+    if (!adminTab) {
+        // Tạo nút tab
+        adminTabBtn = document.createElement('button');
+        adminTabBtn.classList.add('tab-btn');
+        adminTabBtn.dataset.tab = 'admin';
+        adminTabBtn.innerHTML = '<i class="fas fa-cog"></i> Quản trị';
+        document.querySelector('.tabs').appendChild(adminTabBtn);
+
+        // Tạo nội dung tab
+        adminTab = document.createElement('div');
+        adminTab.id = 'admin-tab';
+        adminTab.classList.add('tab-content');
+        adminTab.innerHTML = `
+            <h2>Quản lý hệ thống</h2>
+            <div class="admin-controls">
+                <div class="admin-section">
+                    <h3>Quản lý người dùng</h3>
+                    <button class="admin-action-btn" id="list-users-btn">Danh sách người dùng</button>
+                    <button class="admin-action-btn" id="block-user-btn">Khóa người dùng</button>
+                </div>
+                <div class="admin-section">
+                    <h3>Quản lý nhóm</h3>
+                    <button class="admin-action-btn" id="list-groups-btn">Danh sách nhóm</button>
+                    <button class="admin-action-btn" id="delete-group-btn">Xóa nhóm</button>
+                </div>
+                <div class="admin-section">
+                    <h3>Cài đặt hệ thống</h3>
+                    <button class="admin-action-btn" id="general-settings-btn">Cấu hình chung</button>
+                    <button class="admin-action-btn" id="backup-data-btn">Sao lưu dữ liệu</button>
+                </div>
+            </div>
+        `;
+        document.querySelector('.chat-container').appendChild(adminTab);
+
+        // Thêm xử lý sự kiện cho các nút trong tab quản trị
+        document.getElementById('list-users-btn').addEventListener('click', listUsers);
+        document.getElementById('block-user-btn').addEventListener('click', blockUser);
+        document.getElementById('list-groups-btn').addEventListener('click', listGroups);
+        document.getElementById('delete-group-btn').addEventListener('click', deleteGroup);
+        document.getElementById('general-settings-btn').addEventListener('click', generalSettings);
+        document.getElementById('backup-data-btn').addEventListener('click', backupData);
+    }
+
+    // Chuyển đổi trạng thái hiển thị tab quản trị
+    isAdminTabOpen = !isAdminTabOpen;
+    if (isAdminTabOpen) {
+        // Kích hoạt tab quản trị
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        adminTabBtn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        adminTab.style.display = 'block';
+    } else {
+        // Ẩn tab quản trị và hiển thị tab chat
+        adminTabBtn.classList.remove('active');
+        adminTab.style.display = 'none';
+        document.querySelector('[data-tab="chat"]').classList.add('active');
+        document.getElementById('chat-tab').style.display = 'block';
+    }
+});
+
+// Hàm xử lý các chức năng quản trị
+async function listUsers() {
+    try {
+        const usersSnapshot = await database.ref('users').once('value');
+        const users = usersSnapshot.val();
+        let userList = 'Danh sách người dùng:\n';
+        for (const uid in users) {
+            userList += `- ${users[uid].displayName} (${users[uid].email})\n`;
+        }
+        alert(userList);
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách người dùng:', error);
+        alert('Có lỗi xảy ra khi lấy danh sách người dùng');
+    }
+}
+
+async function blockUser() {
+    const email = prompt('Nhập email của người dùng cần khóa:');
+    if (email) {
+        try {
+            const usersSnapshot = await database.ref('users').orderByChild('email').equalTo(email).once('value');
+            const users = usersSnapshot.val();
+            if (users) {
+                const uid = Object.keys(users)[0];
+                await database.ref(`users/${uid}/blocked`).set(true);
+                alert('Đã khóa người dùng thành công');
+            } else {
+                alert('Không tìm thấy người dùng với email này');
+            }
+        } catch (error) {
+            console.error('Lỗi khi khóa người dùng:', error);
+            alert('Có lỗi xảy ra khi khóa người dùng');
+        }
+    }
+}
+
+async function listGroups() {
+    try {
+        const groupsSnapshot = await database.ref('groups').once('value');
+        const groups = groupsSnapshot.val();
+        let groupList = 'Danh sách nhóm:\n';
+        for (const groupId in groups) {
+            groupList += `- ${groups[groupId].name}\n`;
+        }
+        alert(groupList);
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách nhóm:', error);
+        alert('Có lỗi xảy ra khi lấy danh sách nhóm');
+    }
+}
+
+async function deleteGroup() {
+    const groupName = prompt('Nhập tên nhóm cần xóa:');
+    if (groupName) {
+        try {
+            const groupsSnapshot = await database.ref('groups').orderByChild('name').equalTo(groupName).once('value');
+            const groups = groupsSnapshot.val();
+            if (groups) {
+                const groupId = Object.keys(groups)[0];
+                await database.ref(`groups/${groupId}`).remove();
+                alert('Đã xóa nhóm thành công');
+            } else {
+                alert('Không tìm thấy nhóm với tên này');
+            }
+        } catch (error) {
+            console.error('Lỗi khi xóa nhóm:', error);
+            alert('Có lỗi xảy ra khi xóa nhóm');
+        }
+    }
+}
+
+function generalSettings() {
+    alert('Tính năng đang được phát triển');
+}
+
+function backupData() {
+    alert('Tính năng đang được phát triển');
+}
 
 // Tải danh sách người dùng có thể mời
 async function loadAvailableUsers() {
