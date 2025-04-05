@@ -132,6 +132,29 @@ attachmentBtn.addEventListener('click', () => {
     input.click();
 });
 
+// Hàm tạo avatar mặc định với chữ cái đầu và màu nền ngẫu nhiên
+// Lưu trữ màu nền avatar cho mỗi người dùng
+const userAvatarColors = {};
+
+function createDefaultAvatar(username) {
+  const firstChar = username ? username.charAt(0) : '?';
+  const colors = [
+    'var(--avatar-bg-1)',
+    'var(--avatar-bg-2)',
+    'var(--avatar-bg-3)',
+    'var(--avatar-bg-4)',
+    'var(--avatar-bg-5)',
+    'var(--avatar-bg-6)'
+  ];
+  
+  // Sử dụng màu đã lưu hoặc tạo màu mới
+  if (!userAvatarColors[username]) {
+    userAvatarColors[username] = colors[Math.floor(Math.random() * colors.length)];
+  }
+  
+  return `<div class="message-avatar" style="background-color: ${userAvatarColors[username]}">${firstChar}</div>`;
+}
+
 // Xử lý trạng thái online/offline
 const userStatusRef = database.ref('status');
 const connectedRef = database.ref('.info/connected');
@@ -466,13 +489,17 @@ function sendMessage() {
     if (message) {
         const username = usernameInput.value || 'Ẩn danh';
 
+        // Lấy avatarUrl từ currentUserProfile
+        const avatarUrl = currentUserProfile?.avatarUrl || 'https://via.placeholder.com/40';
+
         // Thêm tin nhắn vào database Firebase
         const messageRef = currentGroupId === 'public' ? 'public_messages' : `group_messages/${currentGroupId}`;
         database.ref(messageRef).push({
             username: username,
             text: message,
             timestamp: firebase.database.ServerValue.TIMESTAMP,
-            userId: auth.currentUser.uid
+            userId: auth.currentUser.uid,
+            avatarUrl: avatarUrl
         });
 
         // Xóa nội dung tin nhắn trong input
@@ -493,12 +520,7 @@ function loadMessages(groupId) {
 function displayMessage(message) {
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message');
-
-    if (message.username === usernameInput.value) {
-        messageDiv.classList.add('sent');
-    } else {
-        messageDiv.classList.add('received');
-    }
+    messageDiv.classList.add(message.userId === auth.currentUser?.uid ? 'sent' : 'received');
 
     const header = document.createElement('div');
     header.classList.add('message-header');
@@ -509,12 +531,26 @@ function displayMessage(message) {
         statusIndicator.classList.add(snap.val() ? 'online' : 'offline');
     });
 
+    // Thêm avatar hoặc tạo avatar mặc định
+    let avatarElement;
+    if (message.avatarUrl && message.avatarUrl !== 'https://via.placeholder.com/40') {
+        const avatarImg = document.createElement('img');
+        avatarImg.src = message.avatarUrl;
+        avatarImg.classList.add('message-avatar');
+        avatarImg.alt = message.username;
+        avatarElement = avatarImg.outerHTML;
+    } else {
+        avatarElement = createDefaultAvatar(message.username);
+    }
+
     const time = new Date(message.timestamp).toLocaleTimeString();
     header.innerHTML = `
         ${statusIndicator.outerHTML}
+        ${avatarElement}
         <strong>${message.username}</strong>
         <span class="message-time">${time}</span>
     `;
+
 
     messageDiv.appendChild(header);
 
@@ -545,11 +581,21 @@ window.onload = scrollToBottom;
 // Xử lý đăng xuất (tùy chọn)
 // Xử lý tải và hiển thị thông tin hồ sơ người dùng
 function loadUserProfile(userId) {
+    // Kiểm tra xem có avatar URL trong localStorage không
+    const storedAvatarUrl = localStorage.getItem(`avatarUrl_${userId}`);
+    if (storedAvatarUrl) {
+        updateProfileUI({ ...currentUserProfile, avatarUrl: storedAvatarUrl });
+    }
+
     database.ref(`users/${userId}`).once('value')
         .then((snapshot) => {
             const profile = snapshot.val();
             if (profile) {
                 currentUserProfile = profile;
+                // Lưu avatar URL vào localStorage
+                if (profile.avatarUrl) {
+                    localStorage.setItem(`avatarUrl_${userId}`, profile.avatarUrl);
+                }
                 updateProfileUI(profile);
             }
         })
@@ -575,24 +621,83 @@ document.getElementById('change-avatar-btn').addEventListener('click', () => {
 document.getElementById('avatar-upload').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
+        // Kiểm tra kích thước file (giới hạn 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Kích thước file không được vượt quá 5MB');
+            return;
+        }
+
+        // Kiểm tra định dạng file
+        if (!file.type.startsWith('image/')) {
+            alert('Vui lòng chọn file ảnh');
+            return;
+        }
+
+        // Xem trước ảnh
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('user-avatar').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        // Hiển thị loading
         loadingIndicator.style.display = 'block';
-        const storageRef = storage.ref(`avatars/${auth.currentUser.uid}/${file.name}`);
+
+        // Tạo tên file ngẫu nhiên để tránh trùng lặp
+        const fileExtension = file.name.split('.').pop();
+        const randomFileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExtension}`;
+        const storageRef = storage.ref(`avatars/${auth.currentUser.uid}/${randomFileName}`);
         
-        storageRef.put(file).then(() => {
-            return storageRef.getDownloadURL();
-        }).then((url) => {
-            return database.ref(`users/${auth.currentUser.uid}`).update({
-                avatarUrl: url
-            });
-        }).then(() => {
-            document.getElementById('user-avatar').src = url;
-            currentUserProfile.avatarUrl = url;
-        }).catch((error) => {
-            console.error('Lỗi khi tải lên ảnh đại diện:', error);
-            alert('Lỗi khi tải lên ảnh đại diện');
-        }).finally(() => {
-            loadingIndicator.style.display = 'none';
-        });
+        // Nén ảnh trước khi tải lên
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Tính toán kích thước mới để giữ tỷ lệ khung hình
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 800; // Kích thước tối đa
+            
+            if (width > height) {
+                if (width > maxSize) {
+                    height *= maxSize / width;
+                    width = maxSize;
+                }
+            } else {
+                if (height > maxSize) {
+                    width *= maxSize / height;
+                    height = maxSize;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Chuyển canvas thành blob
+            canvas.toBlob((blob) => {
+                storageRef.put(blob).then(() => {
+                    return storageRef.getDownloadURL();
+                }).then((url) => {
+                    return database.ref(`users/${auth.currentUser.uid}`).update({
+                        avatarUrl: url
+                    });
+                }).then(() => {
+                    currentUserProfile.avatarUrl = document.getElementById('user-avatar').src;
+                }).catch((error) => {
+                    console.error('Lỗi khi tải lên ảnh đại diện:', error);
+                    alert('Lỗi khi tải lên ảnh đại diện: ' + error.message);
+                    // Khôi phục ảnh đại diện cũ nếu có lỗi
+                    document.getElementById('user-avatar').src = currentUserProfile.avatarUrl;
+                }).finally(() => {
+                    loadingIndicator.style.display = 'none';
+                    URL.revokeObjectURL(img.src);
+                });
+            }, 'image/jpeg', 0.8);
+        };
+
     }
 });
 
