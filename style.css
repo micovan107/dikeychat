@@ -1321,10 +1321,16 @@ body.dark-mode {
 
 .message {
   color: #333;
+  max-width: 40%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .dark-mode .message {
   color: #333;
+  max-width: 70%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .input-area {
@@ -1358,6 +1364,53 @@ body.dark-mode {
 
 .input-area .attachment-btn:hover,
 .input-area .emoji-btn:hover {
+  color: var(--primary-color);
+}
+
+/* Image preview styles */
+.image-preview-container {
+  position: relative;
+  margin: 10px 0;
+  max-width: 200px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.image-preview {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.remove-preview {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.remove-preview:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.message img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  margin: 5px 0;
+}
+
+.input-area {
   color: #007bff;
 }
 
