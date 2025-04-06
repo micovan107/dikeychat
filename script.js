@@ -1100,10 +1100,30 @@ function loadMessages(groupId) {
     });
 }
 
+// Biến lưu tin nhắn trước đó
+let lastMessage = null;
+
 function displayMessage(message) {
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message');
     messageDiv.classList.add(message.userId === auth.currentUser?.uid ? 'sent' : 'received');
+
+    // Kiểm tra xem tin nhắn có phải từ cùng một người dùng không
+    const isSameUser = lastMessage && lastMessage.username === message.username;
+    
+    // Nếu là tin nhắn từ cùng người dùng, thêm vào message-group
+    if (isSameUser) {
+        const lastMessageDiv = messagesDiv.lastElementChild;
+        if (!lastMessageDiv.classList.contains('message-group')) {
+            const groupDiv = document.createElement('div');
+            groupDiv.classList.add('message-group');
+            lastMessageDiv.parentNode.insertBefore(groupDiv, lastMessageDiv);
+            groupDiv.appendChild(lastMessageDiv);
+            groupDiv.appendChild(messageDiv);
+        } else {
+            lastMessageDiv.appendChild(messageDiv);
+        }
+    }
 
     const header = document.createElement('div');
     header.classList.add('message-header');
@@ -1120,10 +1140,14 @@ function displayMessage(message) {
         const avatarImg = document.createElement('img');
         avatarImg.src = message.avatarUrl;
         avatarImg.classList.add('message-avatar');
+        if (isSameUser) avatarImg.classList.add('message-avatar-hidden');
         avatarImg.alt = message.username;
         avatarElement = avatarImg.outerHTML;
     } else {
         avatarElement = createDefaultAvatar(message.username);
+        if (isSameUser) {
+            avatarElement = avatarElement.replace('class="message-avatar"', 'class="message-avatar message-avatar-hidden"');
+        }
     }
 
     const time = new Date(message.timestamp).toLocaleTimeString();
@@ -1133,7 +1157,6 @@ function displayMessage(message) {
         <strong>${message.username}</strong>
         <span class="message-time">${time}</span>
     `;
-
 
     messageDiv.appendChild(header);
 
@@ -1148,6 +1171,14 @@ function displayMessage(message) {
         textDiv.textContent = message.text;
         messageDiv.appendChild(textDiv);
     }
+
+    // Nếu không phải tin nhắn từ cùng người dùng, thêm trực tiếp vào messagesDiv
+    if (!isSameUser) {
+        messagesDiv.appendChild(messageDiv);
+    }
+
+    // Cập nhật tin nhắn trước đó
+    lastMessage = message;
 
     messagesDiv.appendChild(messageDiv);
     scrollToBottom();
