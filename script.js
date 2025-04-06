@@ -444,8 +444,22 @@ async function loadFriendsList() {
         const usersSnapshot = await database.ref('users').once('value');
         const users = usersSnapshot.val() || {};
         
+        // Tạo Set để theo dõi ID bạn bè đã hiển thị
+        const displayedFriends = new Set();
+        
+        // Lọc và sắp xếp danh sách bạn bè theo thời gian kết bạn
+        const friendsList = Object.entries(friends)
+            .filter(([friendId]) => {
+                if (users[friendId] && !displayedFriends.has(friendId)) {
+                    displayedFriends.add(friendId);
+                    return true;
+                }
+                return false;
+            })
+            .sort((a, b) => b[1].timestamp - a[1].timestamp);
+        
         // Hiển thị từng người bạn
-        for (const [friendId, friendData] of Object.entries(friends)) {
+        for (const [friendId, friendData] of friendsList) {
             const friendInfo = users[friendId];
             if (friendInfo) {
                 const isOnline = !!onlineStatus[friendId];
@@ -1317,3 +1331,32 @@ function logout() {
         console.error('Lỗi đăng xuất:', error);
     });
 }
+
+
+// Hàm lắng nghe thay đổi trạng thái kết bạn
+function listenToFriendshipChanges() {
+  if (!auth.currentUser) return;
+
+  // Lắng nghe thay đổi trong danh sách bạn bè
+  database.ref(`friends/${auth.currentUser.uid}`).on('value', (snapshot) => {
+    loadFriendsList();
+  });
+
+  // Lắng nghe thay đổi trong lời mời kết bạn
+  database.ref(`friendRequests/${auth.currentUser.uid}`).on('value', (snapshot) => {
+    loadUsersList();
+  });
+}
+
+// Thêm gọi hàm lắng nghe khi người dùng đăng nhập thành công
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    listenToFriendshipChanges();
+  } else {
+    // Hủy đăng ký lắng nghe khi đăng xuất
+    if (auth.currentUser) {
+      database.ref(`friends/${auth.currentUser.uid}`).off();
+      database.ref(`friendRequests/${auth.currentUser.uid}`).off();
+    }
+  }
+});
