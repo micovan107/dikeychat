@@ -207,6 +207,10 @@ async function loadUsersList() {
     const friendRequestsSnapshot = await database.ref('friendRequests').once('value');
     const friendRequests = friendRequestsSnapshot.val() || {};
     
+    // Lấy danh sách bạn bè của người dùng hiện tại
+    const friendsSnapshot = await database.ref(`friends/${auth.currentUser.uid}`).once('value');
+    const friends = friendsSnapshot.val() || {};
+
     for (const [userId, user] of Object.entries(users)) {
         if (userId !== auth.currentUser.uid) {
             const userItem = document.createElement('div');
@@ -217,12 +221,17 @@ async function loadUsersList() {
             const sentRequest = friendRequests[userId]?.[auth.currentUser.uid];
             // Kiểm tra lời mời kết bạn đã nhận
             const receivedRequest = friendRequests[auth.currentUser.uid]?.[userId];
+            // Kiểm tra xem đã là bạn bè chưa
+            const isFriend = friends[userId];
             
             let buttonHtml = '';
             
-            if (sentRequest?.status === 'pending') {
+            if (isFriend) {
+                // Đã là bạn bè
+                buttonHtml = `<button class="friend-request-btn unfriend" data-user-id="${userId}">Hủy kết bạn</button>`;
+            } else if (sentRequest?.status === 'pending') {
                 // Đã gửi lời mời
-                buttonHtml = `<button class="send-friend-request pending" disabled>Đã gửi lời mời</button>`;
+                buttonHtml = `<button class="cancel-friend-request" data-user-id="${userId}">Hủy lời mời</button>`;
             } else if (receivedRequest?.status === 'pending') {
                 // Nhận được lời mời
                 buttonHtml = `
@@ -250,6 +259,7 @@ async function loadUsersList() {
             const sendRequestBtn = userItem.querySelector('.send-friend-request');
             const acceptBtn = userItem.querySelector('.accept-friend-request');
             const rejectBtn = userItem.querySelector('.reject-friend-request');
+            const cancelRequestBtn = userItem.querySelector('.cancel-friend-request');
             
             if (sendRequestBtn) {
                 sendRequestBtn.addEventListener('click', () => sendFriendRequest(userId));
@@ -307,9 +317,67 @@ async function loadUsersList() {
                     }
                 });
             }
+
+            if (cancelRequestBtn) {
+                cancelRequestBtn.addEventListener('click', async () => {
+                    try {
+                        // Xóa lời mời kết bạn
+                        await database.ref(`friendRequests/${userId}/${auth.currentUser.uid}`).remove();
+                        // Tải lại danh sách người dùng
+                        loadUsersList();
+                        // Hiển thị thông báo
+                        const notification = document.createElement('div');
+                        notification.classList.add('notification', 'success');
+                        notification.textContent = 'Đã hủy lời mời kết bạn!';
+                        document.body.appendChild(notification);
+                        setTimeout(() => notification.remove(), 3000);
+                    } catch (error) {
+                        console.error('Lỗi khi hủy lời mời kết bạn:', error);
+                        const notification = document.createElement('div');
+                        notification.classList.add('notification', 'error');
+                        notification.textContent = 'Không thể hủy lời mời kết bạn: ' + error.message;
+                        document.body.appendChild(notification);
+                        setTimeout(() => notification.remove(), 3000);
+                    }
+                });
+            }
+
+            // Thêm event listener cho nút hủy kết bạn
+            const unfriendBtn = userItem.querySelector('.unfriend');
+            if (unfriendBtn) {
+                unfriendBtn.addEventListener('click', () => unfriend(userId));
+            }
         }
     }
 }
+
+// Hàm hủy kết bạn
+async function unfriend(targetUserId) {
+    try {
+        // Xóa mối quan hệ bạn bè ở cả hai phía
+        await database.ref(`friends/${auth.currentUser.uid}/${targetUserId}`).remove();
+        await database.ref(`friends/${targetUserId}/${auth.currentUser.uid}`).remove();
+        
+        // Tải lại danh sách người dùng và bạn bè
+        loadUsersList();
+        loadFriendsList();
+        
+        // Hiển thị thông báo
+        const notification = document.createElement('div');
+        notification.classList.add('notification', 'success');
+        notification.textContent = 'Đã hủy kết bạn!';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    } catch (error) {
+        console.error('Lỗi khi hủy kết bạn:', error);
+        const notification = document.createElement('div');
+        notification.classList.add('notification', 'error');
+        notification.textContent = 'Không thể hủy kết bạn: ' + error.message;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+}
+
 
 
 // Hàm gửi lời mời kết bạn
@@ -395,8 +463,9 @@ async function loadFriendsList() {
                 
                 // Thêm sự kiện click để bắt đầu chat riêng
                 friendItem.addEventListener('click', () => {
-                    // Chuyển sang chế độ chat riêng
-                    currentGroupId = `private_${auth.currentUser.uid}_${friendId}`;
+                    // Chuyển sang chế độ chat riêng với ID nhất quán
+                    const ids = [auth.currentUser.uid, friendId].sort();
+                    currentGroupId = `private_${ids[0]}_${ids[1]}`;
                     
                     // Cập nhật giao diện chat
                     const chatHeader = document.getElementById('chat-header');
