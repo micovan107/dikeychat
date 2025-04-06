@@ -159,6 +159,85 @@ function createDefaultAvatar(username) {
   return `<div class="message-avatar" style="background-color: ${userAvatarColors[username]}">${firstChar}</div>`;
 }
 
+// Khởi tạo modal danh sách người dùng
+const usersModal = document.createElement('div');
+usersModal.classList.add('users-modal');
+usersModal.innerHTML = `
+    <div class="users-modal-content">
+        <div class="users-modal-header">
+            <h3 class="users-modal-title">Danh sách người dùng</h3>
+            <button class="close-users-modal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="users-list-container"></div>
+    </div>
+`;
+document.body.appendChild(usersModal);
+
+// Xử lý nút bạn bè
+const friendsBtn = document.getElementById('add-friend-btn');
+if (friendsBtn) {
+    friendsBtn.addEventListener('click', () => {
+        usersModal.classList.add('active');
+        loadUsersList();
+    });
+}
+
+// Đóng modal khi click nút đóng
+const closeUsersModal = usersModal.querySelector('.close-users-modal');
+closeUsersModal.addEventListener('click', () => {
+    usersModal.classList.remove('active');
+});
+
+// Đóng modal khi click bên ngoài
+usersModal.addEventListener('click', (e) => {
+    if (e.target === usersModal) {
+        usersModal.classList.remove('active');
+    }
+});
+
+// Hàm tải danh sách người dùng
+async function loadUsersList() {
+    const usersListContainer = usersModal.querySelector('.users-list-container');
+    usersListContainer.innerHTML = '';
+    
+    const usersSnapshot = await database.ref('users').once('value');
+    const users = usersSnapshot.val();
+    
+    for (const [userId, user] of Object.entries(users)) {
+        if (userId !== auth.currentUser.uid) {
+            const userItem = document.createElement('div');
+            userItem.classList.add('user-list-item');
+            userItem.innerHTML = `
+                <div class="user-list-info">
+                    <img src="${user.avatarUrl || 'https://via.placeholder.com/40'}" alt="${user.displayName}" class="user-list-avatar">
+                    <span class="user-list-name">${user.displayName}</span>
+                </div>
+                <button class="send-friend-request">Kết bạn</button>
+            `;
+            
+            const sendRequestBtn = userItem.querySelector('.send-friend-request');
+            sendRequestBtn.addEventListener('click', () => sendFriendRequest(userId));
+            
+            usersListContainer.appendChild(userItem);
+        }
+    }
+}
+
+// Hàm gửi lời mời kết bạn
+async function sendFriendRequest(targetUserId) {
+    try {
+        const requestRef = database.ref(`friendRequests/${targetUserId}/${auth.currentUser.uid}`);
+        await requestRef.set({
+            status: 'pending',
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        alert('Đã gửi lời mời kết bạn!');
+    } catch (error) {
+        console.error('Lỗi khi gửi lời mời kết bạn:', error);
+        alert('Không thể gửi lời mời kết bạn: ' + error.message);
+    }
+}
+
 // Xử lý trạng thái online/offline
 const userStatusRef = database.ref('status');
 const connectedRef = database.ref('.info/connected');
