@@ -255,6 +255,59 @@ body.dark-mode {
   height: 100%;
 }
 
+/* Private chat styles */
+.private-chat {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  height: 100%;
+}
+
+.private-chat-header {
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.dark-mode .private-chat-header {
+  border-color: var(--border-color-dark);
+}
+
+.private-chat-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.private-chat-info {
+  flex-grow: 1;
+}
+
+.private-chat-username {
+  font-weight: bold;
+  color: var(--text-color-light);
+  margin: 0;
+}
+
+.dark-mode .private-chat-username {
+  color: var(--text-color-dark);
+}
+
+.private-chat-status {
+  font-size: 0.8em;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dark-mode .private-chat-status {
+  color: #aaa;
+}
+
 .sidebar {
   width: 250px;
   background-color: var(--sidebar-bg-light);
@@ -495,17 +548,45 @@ body.dark-mode {
     border-radius: 8px;
     margin-bottom: 8px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
+    border: 1px solid var(--border-color-light);
 }
 
 .friend-item:hover {
     background-color: var(--active-item-bg-light);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .dark-mode .friend-item:hover {
     background-color: var(--active-item-bg-dark);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+.friend-item.online {
+    border-left: 3px solid #4CAF50;
+}
+
+.friend-item.offline {
+    border-left: 3px solid #f44336;
+}
+
+.friend-status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.friend-status-indicator.online {
+    background-color: #4CAF50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+}
+
+.friend-status-indicator.offline {
+    background-color: #f44336;
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.5);
+}
 .friend-avatar {
     width: 40px;
     height: 40px;
@@ -773,32 +854,36 @@ body.dark-mode {
   gap: 8px;
 }
 
-.accept-request-btn,
-.reject-request-btn {
-  padding: 5px 10px;
+.accept-friend-request,
+.reject-friend-request {
+  padding: 8px 16px;
   border: none;
-  border-radius: 15px;
+  border-radius: 20px;
   cursor: pointer;
-  font-size: 0.8em;
+  font-size: 0.9em;
+  font-weight: 500;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.accept-request-btn {
+.accept-friend-request {
   background: #28a745;
   color: white;
 }
 
-.accept-request-btn:hover {
+.accept-friend-request:hover {
   background: #218838;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.reject-request-btn {
+.reject-friend-request {
   background: #dc3545;
   color: white;
 }
 
-.reject-request-btn:hover {
+.reject-friend-request:hover {
   background: #c82333;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .groups-list {
