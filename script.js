@@ -203,25 +203,114 @@ async function loadUsersList() {
     const usersSnapshot = await database.ref('users').once('value');
     const users = usersSnapshot.val();
     
+    // Lấy danh sách lời mời kết bạn đã gửi và nhận
+    const friendRequestsSnapshot = await database.ref('friendRequests').once('value');
+    const friendRequests = friendRequestsSnapshot.val() || {};
+    
     for (const [userId, user] of Object.entries(users)) {
         if (userId !== auth.currentUser.uid) {
             const userItem = document.createElement('div');
             userItem.classList.add('user-list-item');
+            userItem.setAttribute('data-user-id', userId);
+            
+            // Kiểm tra lời mời kết bạn đã gửi
+            const sentRequest = friendRequests[userId]?.[auth.currentUser.uid];
+            // Kiểm tra lời mời kết bạn đã nhận
+            const receivedRequest = friendRequests[auth.currentUser.uid]?.[userId];
+            
+            let buttonHtml = '';
+            
+            if (sentRequest?.status === 'pending') {
+                // Đã gửi lời mời
+                buttonHtml = `<button class="send-friend-request pending" disabled>Đã gửi lời mời</button>`;
+            } else if (receivedRequest?.status === 'pending') {
+                // Nhận được lời mời
+                buttonHtml = `
+                    <div class="friend-request-actions">
+                        <button class="accept-friend-request" data-user-id="${userId}">Đồng ý</button>
+                        <button class="reject-friend-request" data-user-id="${userId}">Từ chối</button>
+                    </div>
+                `;
+            } else {
+                // Chưa có lời mời
+                buttonHtml = `<button class="send-friend-request">Kết bạn</button>`;
+            }
+            
             userItem.innerHTML = `
                 <div class="user-list-info">
                     <img src="${user.avatarUrl || 'https://via.placeholder.com/40'}" alt="${user.displayName}" class="user-list-avatar">
                     <span class="user-list-name">${user.displayName}</span>
                 </div>
-                <button class="send-friend-request">Kết bạn</button>
+                ${buttonHtml}
             `;
             
-            const sendRequestBtn = userItem.querySelector('.send-friend-request');
-            sendRequestBtn.addEventListener('click', () => sendFriendRequest(userId));
-            
             usersListContainer.appendChild(userItem);
+            
+            // Thêm event listeners cho các nút
+            const sendRequestBtn = userItem.querySelector('.send-friend-request');
+            const acceptBtn = userItem.querySelector('.accept-friend-request');
+            const rejectBtn = userItem.querySelector('.reject-friend-request');
+            
+            if (sendRequestBtn) {
+                sendRequestBtn.addEventListener('click', () => sendFriendRequest(userId));
+            }
+            
+            if (acceptBtn) {
+                acceptBtn.addEventListener('click', async () => {
+                    try {
+                        // Cập nhật trạng thái lời mời kết bạn thành 'accepted'
+                        await database.ref(`friendRequests/${auth.currentUser.uid}/${userId}`).update({
+                            status: 'accepted'
+                        });
+                        
+                        // Thêm vào danh sách bạn bè của cả hai người dùng
+                        await database.ref(`friends/${auth.currentUser.uid}/${userId}`).set({
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        });
+                        await database.ref(`friends/${userId}/${auth.currentUser.uid}`).set({
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        });
+                        
+                        // Tải lại danh sách người dùng và bạn bè
+                        loadUsersList();
+                        loadFriendsList();
+                        
+                        // Hiển thị thông báo
+                        const notification = document.createElement('div');
+                        notification.classList.add('notification', 'success');
+                        notification.textContent = 'Đã chấp nhận lời mời kết bạn!';
+                        document.body.appendChild(notification);
+                        setTimeout(() => notification.remove(), 3000);
+                    } catch (error) {
+                        console.error('Lỗi khi chấp nhận lời mời kết bạn:', error);
+                    }
+                });
+            }
+            
+            if (rejectBtn) {
+                rejectBtn.addEventListener('click', async () => {
+                    try {
+                        // Cập nhật trạng thái lời mời kết bạn thành 'rejected'
+                        await database.ref(`friendRequests/${auth.currentUser.uid}/${userId}`).update({
+                            status: 'rejected'
+                        });
+                        // Tải lại danh sách người dùng
+                        loadUsersList();
+                        // Hiển thị thông báo
+                        const notification = document.createElement('div');
+                        notification.classList.add('notification', 'success');
+                        notification.textContent = 'Đã từ chối lời mời kết bạn!';
+                        document.body.appendChild(notification);
+                        setTimeout(() => notification.remove(), 3000);
+                    } catch (error) {
+                        console.error('Lỗi khi từ chối lời mời kết bạn:', error);
+                    }
+                });
+            }
         }
     }
 }
+
 
 // Hàm gửi lời mời kết bạn
 async function sendFriendRequest(targetUserId) {
@@ -231,10 +320,155 @@ async function sendFriendRequest(targetUserId) {
             status: 'pending',
             timestamp: firebase.database.ServerValue.TIMESTAMP
         });
-        alert('Đã gửi lời mời kết bạn!');
+        
+        // Cập nhật trạng thái nút
+        const sendRequestBtn = document.querySelector(`.user-list-item[data-user-id="${targetUserId}"] .send-friend-request`);
+        if (sendRequestBtn) {
+            sendRequestBtn.textContent = 'Đã gửi lời mời';
+            sendRequestBtn.classList.add('pending');
+            sendRequestBtn.disabled = true;
+        }
+
+        // Hiển thị thông báo thành công
+        const notification = document.createElement('div');
+        notification.classList.add('notification', 'success');
+        notification.textContent = 'Đã gửi lời mời kết bạn!';
+        document.body.appendChild(notification);
+
+        // Tự động ẩn thông báo sau 3 giây
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+
     } catch (error) {
         console.error('Lỗi khi gửi lời mời kết bạn:', error);
-        alert('Không thể gửi lời mời kết bạn: ' + error.message);
+        
+        // Hiển thị thông báo lỗi
+        const notification = document.createElement('div');
+        notification.classList.add('notification', 'error');
+        notification.textContent = 'Không thể gửi lời mời kết bạn: ' + error.message;
+        document.body.appendChild(notification);
+
+        // Tự động ẩn thông báo sau 3 giây
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+}
+
+// Hàm tải danh sách bạn bè
+async function loadFriendsList() {
+    const friendsListContainer = document.querySelector('.friends-list');
+    if (!friendsListContainer) return;
+
+    friendsListContainer.innerHTML = '';
+    
+    try {
+        // Lấy danh sách bạn bè của người dùng hiện tại
+        const friendsSnapshot = await database.ref(`friends/${auth.currentUser.uid}`).once('value');
+        const friends = friendsSnapshot.val() || {};
+        
+        // Lấy thông tin trạng thái online của tất cả người dùng
+        const statusSnapshot = await database.ref('status').once('value');
+        const onlineStatus = statusSnapshot.val() || {};
+        
+        // Lấy thông tin của tất cả người dùng
+        const usersSnapshot = await database.ref('users').once('value');
+        const users = usersSnapshot.val() || {};
+        
+        // Hiển thị từng người bạn
+        for (const [friendId, friendData] of Object.entries(friends)) {
+            const friendInfo = users[friendId];
+            if (friendInfo) {
+                const isOnline = !!onlineStatus[friendId];
+                const friendItem = document.createElement('div');
+                friendItem.classList.add('friend-item', isOnline ? 'online' : 'offline');
+                
+                friendItem.innerHTML = `
+                    <div class="friend-status-indicator ${isOnline ? 'online' : 'offline'}"></div>
+                    <img src="${friendInfo.avatarUrl || 'https://via.placeholder.com/40'}" alt="${friendInfo.displayName}" class="friend-avatar">
+                    <div class="friend-info">
+                        <h4 class="friend-name">${friendInfo.displayName}</h4>
+                        <span class="friend-status">${isOnline ? 'Đang trực tuyến' : 'Ngoại tuyến'}</span>
+                    </div>
+                `;
+                
+                // Thêm sự kiện click để bắt đầu chat riêng
+                friendItem.addEventListener('click', () => {
+                    // Chuyển sang chế độ chat riêng
+                    currentGroupId = `private_${auth.currentUser.uid}_${friendId}`;
+                    
+                    // Cập nhật giao diện chat
+                    const chatHeader = document.getElementById('chat-header');
+                    chatHeader.innerHTML = `
+                        <div class="private-chat-header">
+                            <img src="${friendInfo.avatarUrl || 'https://via.placeholder.com/40'}" alt="${friendInfo.displayName}" class="private-chat-avatar">
+                            <div class="private-chat-info">
+                                <h3 class="private-chat-username">${friendInfo.displayName}</h3>
+                                <div class="private-chat-status">
+                                    <span class="status-indicator ${isOnline ? 'online' : 'offline'}"></span>
+                                    <span>${isOnline ? 'Đang trực tuyến' : 'Ngoại tuyến'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Xóa tin nhắn cũ và tải tin nhắn mới
+                    const messagesDiv = document.querySelector('.messages');
+                    messagesDiv.innerHTML = '';
+                    
+                    // Lắng nghe tin nhắn mới
+                    const chatRef = database.ref(`private_messages/${currentGroupId}`);
+                    chatRef.off(); // Hủy lắng nghe cũ nếu có
+                    chatRef.on('child_added', (snapshot) => {
+                        const message = snapshot.val();
+                        const messageElement = document.createElement('div');
+                        messageElement.classList.add('message');
+                        
+                        // Kiểm tra xem tin nhắn là của ai
+                        const isCurrentUser = message.userId === auth.currentUser.uid;
+                        messageElement.classList.add(isCurrentUser ? 'sent' : 'received');
+                        
+                        // Tạo nội dung tin nhắn
+                        messageElement.innerHTML = `
+                            ${createDefaultAvatar(message.username)}
+                            <div class="message-content">
+                                <div class="message-info">
+                                    <span class="username">${message.username}</span>
+                                    <span class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                                <div class="message-text">${message.text}</div>
+                            </div>
+                        `;
+                        
+                        messagesDiv.appendChild(messageElement);
+                        scrollToBottom();
+                    });
+                });
+                
+                // Cập nhật xử lý gửi tin nhắn
+                sendBtn.onclick = () => {
+                    const messageText = messageInput.value.trim();
+                    if (messageText && currentGroupId) {
+                        const isPrivateChat = currentGroupId.startsWith('private_');
+                        const messageRef = database.ref(isPrivateChat ? `private_messages/${currentGroupId}` : 'messages');
+                        
+                        messageRef.push({
+                            userId: auth.currentUser.uid,
+                            username: usernameInput.value || 'Ẩn danh',
+                            text: messageText,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        });
+                        
+                        messageInput.value = '';
+                    }
+                };
+                
+                friendsListContainer.appendChild(friendItem);
+            }
+        }
+    } catch (error) {
+        console.error('Lỗi khi tải danh sách bạn bè:', error);
     }
 }
 
@@ -247,6 +481,16 @@ connectedRef.on('value', (snap) => {
         const statusRef = userStatusRef.child(auth.currentUser.uid);
         statusRef.set(true);
         statusRef.onDisconnect().remove();
+        
+        // Tải danh sách bạn bè khi kết nối thành công
+        loadFriendsList();
+    }
+});
+
+// Lắng nghe sự thay đổi trạng thái online/offline của bạn bè
+userStatusRef.on('value', (snapshot) => {
+    if (auth.currentUser) {
+        loadFriendsList(); // Cập nhật danh sách bạn bè khi có thay đổi trạng thái
     }
 });
 
@@ -731,8 +975,17 @@ function sendMessage() {
         // Lấy avatarUrl từ currentUserProfile
         const avatarUrl = currentUserProfile?.avatarUrl || 'https://via.placeholder.com/40';
 
+        // Xác định đường dẫn tin nhắn dựa vào loại chat
+        let messageRef;
+        if (currentGroupId === 'public') {
+            messageRef = 'public_messages';
+        } else if (currentGroupId.startsWith('private_')) {
+            messageRef = `private_messages/${currentGroupId}`;
+        } else {
+            messageRef = `group_messages/${currentGroupId}`;
+        }
+
         // Thêm tin nhắn vào database Firebase
-        const messageRef = currentGroupId === 'public' ? 'public_messages' : `group_messages/${currentGroupId}`;
         database.ref(messageRef).push({
             username: username,
             text: message,
@@ -748,7 +1001,15 @@ function sendMessage() {
 
 // Tải và hiển thị tin nhắn
 function loadMessages(groupId) {
-    const messageRef = groupId === 'public' ? 'public_messages' : `group_messages/${groupId}`;
+    let messageRef;
+    if (groupId === 'public') {
+        messageRef = 'public_messages';
+    } else if (groupId.startsWith('private_')) {
+        messageRef = `private_messages/${groupId}`;
+    } else {
+        messageRef = `group_messages/${groupId}`;
+    }
+    
     database.ref(messageRef).off();
     database.ref(messageRef).orderByChild('timestamp').on('child_added', (snapshot) => {
         const message = snapshot.val();
