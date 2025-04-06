@@ -658,6 +658,17 @@ body.dark-mode {
   border-color: #28a745;
 }
 
+.friend-request-btn.unfriend {
+  background: transparent;
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.friend-request-btn.unfriend:hover {
+  background: #dc3545;
+  color: white;
+}
+
 /* Users list modal styles */
 .users-modal {
   display: none;
