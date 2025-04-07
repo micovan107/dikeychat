@@ -1034,7 +1034,7 @@ database.ref('groups').on('value', (snapshot) => {
 });
 
 // Chuyển đổi giữa các nhóm chat
-groupsList.addEventListener('click', (e) => {
+groupsList.addEventListener('click', async (e) => {
     const groupItem = e.target.closest('.group-item');
     if (groupItem) {
         const groupId = groupItem.dataset.groupId;
@@ -1042,7 +1042,34 @@ groupsList.addEventListener('click', (e) => {
         document.querySelectorAll('.group-item').forEach(item => {
             item.classList.toggle('active', item.dataset.groupId === groupId);
         });
-        currentChatName.textContent = groupId === 'public' ? 'Chat Chung' : groupItem.textContent;
+
+        // Cập nhật tiêu đề chat dựa trên loại chat
+        const chatHeader = document.getElementById('chat-header');
+        if (groupId === 'public') {
+            chatHeader.innerHTML = `
+                <div class="chat-header">
+                    <h3>Chat Chung</h3>
+                </div>
+            `;
+        } else if (!groupId.startsWith('private_')) {
+            // Lấy thông tin nhóm từ database
+            const groupSnapshot = await database.ref(`groups/${groupId}`).once('value');
+            const groupData = groupSnapshot.val();
+            if (groupData) {
+                chatHeader.innerHTML = `
+                    <div class="chat-header">
+                        <div class="group-info">
+                            <h3 class="group-name">${groupData.name}</h3>
+                            <span class="group-members-count">Nhóm chat</span>
+                        </div>
+                        <button class="group-info-btn" id="group-info-btn">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
         messagesDiv.innerHTML = '';
         loadMessages(groupId);
     }
